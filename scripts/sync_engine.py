@@ -1,7 +1,14 @@
 import os
 import sys
+import time
+import requests
 from git import Repo
-from google import genai
+
+# -----------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------
+SMART_ROUTER_URL = "https://ai-smart-router.vercel.app/api/chat"
+
 
 def load_prompt(filename):
     path = os.path.join(os.path.dirname(__file__), '..', filename)
@@ -10,111 +17,118 @@ def load_prompt(filename):
             return f.read()
     return ""
 
+
+def call_smart_router(api_secret, system_prompt, user_message, max_retries=3, retry_delay=60):
+    """Appelle l'API centralisée ai-smart-router avec retry sur quota."""
+    headers = {
+        "Authorization": f"Bearer {api_secret}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messages": [
+            {"role": "user", "content": f"{system_prompt}\n\n{user_message}"}
+        ]
+    }
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(SMART_ROUTER_URL, headers=headers, json=payload, timeout=60)
+
+            if response.status_code == 200:
+                data = response.json()
+                provider = data.get("provider", "unknown")
+                model = data.get("model", "unknown")
+                print(f"✅ Response received from '{provider}' ({model}).")
+                return data.get("content", "")
+
+            elif response.status_code == 429:
+                if attempt < max_retries - 1:
+                    wait = retry_delay + (attempt * 30)
+                    print(f"⚠️ Quota exceeded. Waiting {wait}s... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    print("⚠️ Quota exhausted on all retries. Skipping doc sync (non-blocking).")
+                    return None
+
+            elif response.status_code == 401:
+                print("❌ Unauthorized. Check the LLM_API_KEY (API_SECRET) value.")
+                sys.exit(1)
+
+            else:
+                print(f"❌ HTTP {response.status_code}: {response.text}")
+                sys.exit(1)
+
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                print(f"⚠️ Request timed out. Retrying in 30s... (Attempt {attempt + 1}/{max_retries})")
+                time.sleep(30)
+            else:
+                print("❌ Request timed out after multiple retries.")
+                sys.exit(1)
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Connection error: {e}")
+            sys.exit(1)
+
+    return None
+
+
 def main():
-    api_key = os.getenv("LLM_API_KEY")
-    gh_token = os.getenv("GITHUB_TOKEN")
-    
-    if not api_key:
-        print("❌ Error: LLM_API_KEY is not set.")
+    api_secret = os.getenv("LLM_API_KEY")
+
+    if not api_secret:
+        print("❌ Error: LLM_API_KEY (API_SECRET) is not set.")
         sys.exit(1)
 
-    print("🚀 Initializing Prompt-AI Sync Engine (New GenAI SDK)...")
-    
-    # Initialize the new Google GenAI client
-    client = genai.Client(api_key=api_key)
+    print("🚀 Initializing Prompt-AI Sync Engine (via AI Smart Router)...")
 
     # Load Prompts
     maestro_prompt = load_prompt("Le Maestro de Flotte GitHub.md")
     architect_prompt = load_prompt("Architecte de Documentation & Changelog.md")
     guardian_prompt = load_prompt("Le Gardien du README.md")
 
-    # Analyze local repo
+    # Analyze local repo diff
     repo = Repo(os.getcwd())
-    # Limit diff to prevent hitting token limits or triggering quota issues
     try:
         diff = repo.git.diff('HEAD~1' if len(list(repo.iter_commits())) > 1 else 'HEAD')
     except Exception:
         diff = ""
-    
+
     if not diff:
         print("ℹ️ No changes detected since last commit.")
-        diff = "Aucun changement récent (analyse de l'état actuel)."
-    
+        diff = "Aucun changement récent (analyse de l'état actuel du dépôt)."
+
     if len(diff) > 20000:
-        print("⚠️ Diff is too large ({} chars), truncating to 20k...".format(len(diff)))
+        print(f"⚠️ Diff too large ({len(diff)} chars), truncating to 20k...")
         diff = diff[:20000] + "\n... [Diff tronqué pour respecter les limites de quota]"
 
-    import time
-    from google.genai import errors
-
-    print("🧠 Analyzing changes with Gemini 2.0 Flash (Free Tier Optimized)...")
-
-    # Combined Instruction
-    full_prompt = f"""
-    CONTEXTE ET RÔLES :
+    system_prompt = f"""
     {maestro_prompt}
-    
+
     {architect_prompt}
-    
+
     {guardian_prompt}
-    
-    INSTRUCTION :
-    Tu es un automate de synchronisation de documentation. 
-    Analyse les changements suivants dans le dépôt et fournis les mises à jour nécessaires pour CHANGELOG.md et README.md.
-    
-    CHANGEMENTS DÉTECTÉS :
-    {diff}
+
+    Tu es un automate de synchronisation de documentation.
+    Analyse les changements suivants et fournis les mises à jour nécessaires pour CHANGELOG.md et README.md.
     """
-    
-    # Model priority list: try fastest/cheapest first, fallback on quota errors
-    models_to_try = ['gemini-2.0-flash-lite', 'gemini-2.0-flash']
-    suggestion = None
 
-    for model_name in models_to_try:
-        print(f"🤖 Trying model: {model_name}...")
-        max_retries = 3
-        retry_delay = 60
+    user_message = f"CHANGEMENTS DÉTECTÉS :\n{diff}"
 
-        for attempt in range(max_retries):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=full_prompt
-                )
-                suggestion = response.text
-                print(f"✅ Success with model: {model_name}")
-                break
-            except errors.ClientError as e:
-                if "429" in str(e) or "QUOTA_EXHAUSTED" in str(e):
-                    if attempt < max_retries - 1:
-                        print(f"⚠️ Quota exceeded on {model_name}. Waiting {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(retry_delay)
-                        retry_delay += 30
-                    else:
-                        print(f"⚠️ {model_name} quota exhausted. Trying next model...")
-                        break
-                else:
-                    print(f"❌ API Error on {model_name}: {e}")
-                    break
-            except Exception as e:
-                print(f"❌ Unexpected error on {model_name}: {e}")
-                break
-
-        if suggestion:
-            break
+    print("🧠 Requesting documentation analysis via AI Smart Router...")
+    # The router handles provider fallback (Gemini → Groq) automatically server-side
+    suggestion = call_smart_router(api_secret, system_prompt, user_message)
 
     if not suggestion:
-        print("⚠️ All models quota exhausted for today. Skipping doc sync (non-blocking).")
-        print("ℹ️  The workflow will retry on the next commit.")
-        sys.exit(0)  # Exit 0 — quota issue should NOT block the CI pipeline
-    
-    print("📝 Gemini Suggestions received. Applying changes...")
-    
-    # Output for review/automation
+        print("⚠️ No response received. Skipping doc sync (non-blocking).")
+        sys.exit(0)
+
+    print("📝 Writing suggestions to PROMPT_AI_SUGGESTION.md...")
     with open("PROMPT_AI_SUGGESTION.md", "w", encoding="utf-8") as f:
         f.write(suggestion)
-    
+
     print("✅ Documentation sync draft generated in PROMPT_AI_SUGGESTION.md")
+
 
 if __name__ == "__main__":
     main()
