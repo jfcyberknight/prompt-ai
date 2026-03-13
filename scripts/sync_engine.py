@@ -1,7 +1,7 @@
 import os
 import sys
 from git import Repo
-import google.generativeai as genai
+from google import genai
 
 def load_prompt(filename):
     path = os.path.join(os.path.dirname(__file__), '..', filename)
@@ -18,11 +18,10 @@ def main():
         print("❌ Error: LLM_API_KEY is not set.")
         sys.exit(1)
 
-    print("🚀 Initializing Prompt-AI Sync Engine (Gemini Edition)...")
+    print("🚀 Initializing Prompt-AI Sync Engine (New GenAI SDK)...")
     
-    # Configure Gemini
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    # Initialize the new Google GenAI client
+    client = genai.Client(api_key=api_key)
 
     # Load Prompts
     maestro_prompt = load_prompt("Le Maestro de Flotte GitHub.md")
@@ -56,7 +55,11 @@ def main():
     {diff}
     """
     
-    response = model.generate_content(full_prompt)
+    # Generate content using the new SDK
+    response = client.models.generate_content(
+        model='gemini-1.5-pro',
+        contents=full_prompt
+    )
     
     suggestion = response.text
     print("📝 Gemini Suggestions received. Applying changes...")
