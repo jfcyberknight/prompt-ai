@@ -17,6 +17,7 @@ Ce dépôt centralise des instructions (prompts) structurées pour guider les in
 | **🔍 Analyste de Confiance** | Expert Factuel | Priorise l'exactitude, utilise la navigation web et fournit un index de certitude. |
 | **🏗️ Architecte Documentation** | Release Manager | Automatise la gestion du `CHANGELOG.md` et le versionnage SemVer. |
 | **🛡️ Gardien du README** | Technical Writer | Assure la synchronisation parfaite entre le code source et sa documentation. |
+| **🚢 Maestro de Flotte** | Orchestrateur | Déploie et synchronise les standards sur l'ensemble de vos dépôts GitHub. |
 
 ---
 
@@ -28,7 +29,8 @@ prompt-ai/
 ├── README.md                            # Documentation principale (ce fichier)
 ├── Architecte de Documentation...md      # Prompt pour la gestion des logs et versions
 ├── L'Analyste de Confiance.md           # Prompt pour l'analyse factuelle haute précision
-└── Le Gardien du README.md              # Prompt pour la maintenance de la documentation
+├── Le Gardien du README.md              # Prompt pour la maintenance de la documentation
+└── Le Maestro de Flotte GitHub.md       # Orchestrateur multi-dépôts
 ```
 
 ---

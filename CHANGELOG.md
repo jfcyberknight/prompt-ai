@@ -6,6 +6,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 - Ajout du prompt `Architecte de Documentation & Changelog.md` pour automatiser la gestion du journal des modifications.
 - Ajout du prompt `Le Gardien du README.md` pour assurer la cohérence entre le code et la documentation.
 - Création du `README.md` initial structurant la présentation du projet.
+- Ajout du prompt `Le Maestro de Flotte GitHub.md` pour l'orchestration multi-dépôts.
 
 ### Changed
 - Refonte visuelle de `L'Analyste de Confiance.md` (Premium Markdown).
