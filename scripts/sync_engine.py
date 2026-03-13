@@ -37,9 +37,9 @@ def main():
         diff = "Aucun changement récent (analyse de l'état actuel)."
 
     import time
-    from google.api_core import exceptions
+    from google.genai import errors
 
-    print("🧠 Analyzing changes with Gemini...")
+    print("🧠 Analyzing changes with Gemini 2.0 Flash...")
     
     # Combined Instruction
     full_prompt = f"""
@@ -59,23 +59,28 @@ def main():
     """
     
     max_retries = 3
-    retry_delay = 60  # Wait 60 seconds for free tier quota reset
+    retry_delay = 65  # Slightly over 60s to be safe
 
     for attempt in range(max_retries):
         try:
-            # Generate content using the new SDK
+            # Generate content using the latest model
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.0-flash',
                 contents=full_prompt
             )
             suggestion = response.text
             break
-        except exceptions.ResourceExhausted:
-            if attempt < max_retries - 1:
-                print(f"⚠️ Quota exceeded (429). Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
-                time.sleep(retry_delay)
+        except errors.ClientError as e:
+            # Handle rate limits (429) or other client errors
+            if "429" in str(e) or "QUOTA_EXHAUSTED" in str(e):
+                if attempt < max_retries - 1:
+                    print(f"⚠️ Quota exceeded. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                    time.sleep(retry_delay)
+                else:
+                    print("❌ Error: Quota exhausted after multiple retries.")
+                    sys.exit(1)
             else:
-                print("❌ Error: Quota exhausted after multiple retries.")
+                print(f"❌ API Error: {e}")
                 sys.exit(1)
         except Exception as e:
             print(f"❌ An unexpected error occurred: {e}")
