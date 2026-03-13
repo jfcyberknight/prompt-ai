@@ -7,6 +7,11 @@ on:
         required: true
       GH_PAT:
         required: true
+    inputs:
+      AI_SMART_ROUTER_URL:
+        description: "URL de l'API smart router (défaut: https://ai-smart-router.vercel.app)"
+        required: false
+        default: "https://ai-smart-router.vercel.app"
 
 jobs:
   sync_docs:
@@ -33,6 +38,7 @@ jobs:
       - name: Run Maestro Sync Engine
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          AI_SMART_ROUTER_URL: ${{ inputs.AI_SMART_ROUTER_URL }}
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           python prompt-ai-tools/scripts/sync_engine.py

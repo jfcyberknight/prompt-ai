@@ -72,9 +72,10 @@ jobs:
       GH_PAT: ${{ secrets.GH_PAT }}
 ```
 
-### Secrets requis
+### Secrets et variables
 - `LLM_API_KEY` : Votre clé API (OpenAI, Gemini, etc.).
 - `GH_PAT` : Un *Personal Access Token* avec les droits `repo` et `workflow`.
+- `AI_SMART_ROUTER_URL` (optionnel) : URL de l’API smart router. Par défaut : `https://ai-smart-router.vercel.app`.
 
 ---
 

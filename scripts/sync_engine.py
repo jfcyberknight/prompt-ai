@@ -7,7 +7,8 @@ from git import Repo
 # -----------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------
-SMART_ROUTER_URL = "https://ai-smart-router.vercel.app/api/chat"
+_router_base = (os.environ.get("AI_SMART_ROUTER_URL") or "").strip() or "https://ai-smart-router.vercel.app"
+SMART_ROUTER_URL = _router_base.rstrip("/") + "/api/chat"
 
 
 def load_prompt(filename):
