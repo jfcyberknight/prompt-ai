@@ -36,6 +36,9 @@ def main():
         print("ℹ️ No changes detected since last commit.")
         diff = "Aucun changement récent (analyse de l'état actuel)."
 
+    import time
+    from google.api_core import exceptions
+
     print("🧠 Analyzing changes with Gemini...")
     
     # Combined Instruction
@@ -55,13 +58,29 @@ def main():
     {diff}
     """
     
-    # Generate content using the new SDK
-    response = client.models.generate_content(
-        model='gemini-1.5-flash',
-        contents=full_prompt
-    )
+    max_retries = 3
+    retry_delay = 60  # Wait 60 seconds for free tier quota reset
+
+    for attempt in range(max_retries):
+        try:
+            # Generate content using the new SDK
+            response = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=full_prompt
+            )
+            suggestion = response.text
+            break
+        except exceptions.ResourceExhausted:
+            if attempt < max_retries - 1:
+                print(f"⚠️ Quota exceeded (429). Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(retry_delay)
+            else:
+                print("❌ Error: Quota exhausted after multiple retries.")
+                sys.exit(1)
+        except Exception as e:
+            print(f"❌ An unexpected error occurred: {e}")
+            sys.exit(1)
     
-    suggestion = response.text
     print("📝 Gemini Suggestions received. Applying changes...")
     
     # Output for review/automation
