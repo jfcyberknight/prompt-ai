@@ -30,17 +30,25 @@ def main():
 
     # Analyze local repo
     repo = Repo(os.getcwd())
-    diff = repo.git.diff('HEAD~1' if len(list(repo.iter_commits())) > 1 else 'HEAD')
+    # Limit diff to prevent hitting token limits or triggering quota issues
+    try:
+        diff = repo.git.diff('HEAD~1' if len(list(repo.iter_commits())) > 1 else 'HEAD')
+    except Exception:
+        diff = ""
     
     if not diff:
         print("ℹ️ No changes detected since last commit.")
         diff = "Aucun changement récent (analyse de l'état actuel)."
+    
+    if len(diff) > 20000:
+        print("⚠️ Diff is too large ({} chars), truncating to 20k...".format(len(diff)))
+        diff = diff[:20000] + "\n... [Diff tronqué pour respecter les limites de quota]"
 
     import time
     from google.genai import errors
 
-    print("🧠 Analyzing changes with Gemini 2.0 Flash...")
-    
+    print("🧠 Analyzing changes with Gemini 2.0 Flash (Free Tier Optimized)...")
+
     # Combined Instruction
     full_prompt = f"""
     CONTEXTE ET RÔLES :
@@ -58,8 +66,8 @@ def main():
     {diff}
     """
     
-    max_retries = 3
-    retry_delay = 65  # Slightly over 60s to be safe
+    max_retries = 5  # Increased for free tier stability
+    retry_delay = 90  # Increased to 90s to ensure quota reset
 
     for attempt in range(max_retries):
         try:
@@ -71,13 +79,14 @@ def main():
             suggestion = response.text
             break
         except errors.ClientError as e:
-            # Handle rate limits (429) or other client errors
+            # 429 is the most common for free tier limits
             if "429" in str(e) or "QUOTA_EXHAUSTED" in str(e):
                 if attempt < max_retries - 1:
-                    print(f"⚠️ Quota exceeded. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                    print(f"⚠️ Quota exceeded (Free Tier). Waiting {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
                     time.sleep(retry_delay)
+                    retry_delay += 30 # Exponential backoff
                 else:
-                    print("❌ Error: Quota exhausted after multiple retries.")
+                    print("❌ Error: Quota exhausted after multiple retries. Try increasing limits or wait until tomorrow.")
                     sys.exit(1)
             else:
                 print(f"❌ API Error: {e}")
