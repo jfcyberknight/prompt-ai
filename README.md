@@ -25,12 +25,17 @@ Ce dépôt centralise des instructions (prompts) structurées pour guider les in
 
 ```text
 prompt-ai/
-├── CHANGELOG.md                         # Historique des versions et modifications
-├── README.md                            # Documentation principale (ce fichier)
-├── Architecte de Documentation...md      # Prompt pour la gestion des logs et versions
-├── L'Analyste de Confiance.md           # Prompt pour l'analyse factuelle haute précision
-├── Le Gardien du README.md              # Prompt pour la maintenance de la documentation
-└── Le Maestro de Flotte GitHub.md       # Orchestrateur multi-dépôts
+├── .github/workflows/           # Workflows GitHub réutilisables
+│   └── reusable-doc-sync.yml    # Moteur d'automatisation global
+├── scripts/                     # Scripts utilitaires
+│   └── sync_engine.py           # Orchestrateur Gemini 2.0 Flash
+├── Architecte de Documentation...# Gestion SemVer & Changelog
+├── L'Analyste de Confiance.md    # Analyse factuelle haute précision
+├── Le Gardien du README.md       # Maintenance de la documentation
+├── Le Maestro de Flotte...md     # Orchestration multi-dépôts
+├── CHANGELOG.md                 # Historique des versions
+├── README.md                    # Documentation principale (ce fichier)
+└── version.json                 # Source de vérité pour la version (SemVer)
 ```
 
 ---

@@ -1,21 +1,22 @@
 # Changelog
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
-## [Unreleased]
+## [1.0.0] - 13 mars 2026
+
 ### Added
-- Ajout du prompt `Architecte de Documentation & Changelog.md` pour automatiser la gestion du journal des modifications.
-- Ajout du prompt `Le Gardien du README.md` pour assurer la cohérence entre le code et la documentation.
-- Création du `README.md` initial structurant la présentation du projet.
-- Ajout du prompt `Le Maestro de Flotte GitHub.md` pour l'orchestration multi-dépôts.
-- Mise en place du workflow GitHub réutilisable `.github/workflows/reusable-documentation-sync.yml` et du script `sync_engine.py` pour l'automatisation globale.
+- Création du système **Prompt-AI** avec 4 rôles experts (`Analyste`, `Architecte`, `Gardien`, `Maestro`).
+- Prompt `Architecte de Documentation & Changelog.md` pour le suivi SemVer.
+- Prompt `Le Gardien du README.md` pour la cohérence doc/code.
+- Prompt `Le Maestro de Flotte GitHub.md` pour l'orchestration multi-dépôts.
+- Infrastructure d'automatisation GitHub Actions avec workflow réutilisable.
+- Moteur de synchronisation `sync_engine.py` compatible **Gemini 2.0 Flash**.
+- Création du `README.md` structuré et de `version.json`.
 
 ### Changed
-- Refonte visuelle de `L'Analyste de Confiance.md` (Premium Markdown).
-- Refonte visuelle de `Architecte de Documentation & Changelog.md`.
-- Ajout de la **Règle n°5 : Synchronisation de Version (SemVer)** dans le prompt Architecte de Documentation.
-- Migration du moteur de synchronisation (`sync_engine.py`) vers le nouveau **SDK Google GenAI (`google-genai`)**.
-- Passage au modèle **Gemini 2.0 Flash** (le plus récent) et gestion améliorée des erreurs de quota.
-- Ajout d'un mécanisme d'auto-retry (65s) pour gérer les limites de la version gratuite.
+- Refonte visuelle de tous les prompts vers un style Markdown Premium.
+- Migration du moteur de synchronisation vers le SDK **google-genai**.
+- Implémentation d'un mécanisme d'auto-retry pour gérer les quotas de l'API gratuite.
 
 ### Fixed
-- Initialisation propre du dépôt Git et premier push vers GitHub.
+- Initialisation et configuration complète du dépôt Git/GitHub.
+- Correction des erreurs de routage API (404) et d'authentification (401).
