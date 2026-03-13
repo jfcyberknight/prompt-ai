@@ -66,34 +66,47 @@ def main():
     {diff}
     """
     
-    max_retries = 5  # Increased for free tier stability
-    retry_delay = 90  # Increased to 90s to ensure quota reset
+    # Model priority list: try fastest/cheapest first, fallback on quota errors
+    models_to_try = ['gemini-2.0-flash-lite', 'gemini-2.0-flash']
+    suggestion = None
 
-    for attempt in range(max_retries):
-        try:
-            # Generate content using the latest model
-            response = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=full_prompt
-            )
-            suggestion = response.text
-            break
-        except errors.ClientError as e:
-            # 429 is the most common for free tier limits
-            if "429" in str(e) or "QUOTA_EXHAUSTED" in str(e):
-                if attempt < max_retries - 1:
-                    print(f"⚠️ Quota exceeded (Free Tier). Waiting {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(retry_delay)
-                    retry_delay += 30 # Exponential backoff
+    for model_name in models_to_try:
+        print(f"🤖 Trying model: {model_name}...")
+        max_retries = 3
+        retry_delay = 60
+
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=full_prompt
+                )
+                suggestion = response.text
+                print(f"✅ Success with model: {model_name}")
+                break
+            except errors.ClientError as e:
+                if "429" in str(e) or "QUOTA_EXHAUSTED" in str(e):
+                    if attempt < max_retries - 1:
+                        print(f"⚠️ Quota exceeded on {model_name}. Waiting {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        retry_delay += 30
+                    else:
+                        print(f"⚠️ {model_name} quota exhausted. Trying next model...")
+                        break
                 else:
-                    print("❌ Error: Quota exhausted after multiple retries. Try increasing limits or wait until tomorrow.")
-                    sys.exit(1)
-            else:
-                print(f"❌ API Error: {e}")
-                sys.exit(1)
-        except Exception as e:
-            print(f"❌ An unexpected error occurred: {e}")
-            sys.exit(1)
+                    print(f"❌ API Error on {model_name}: {e}")
+                    break
+            except Exception as e:
+                print(f"❌ Unexpected error on {model_name}: {e}")
+                break
+
+        if suggestion:
+            break
+
+    if not suggestion:
+        print("⚠️ All models quota exhausted for today. Skipping doc sync (non-blocking).")
+        print("ℹ️  The workflow will retry on the next commit.")
+        sys.exit(0)  # Exit 0 — quota issue should NOT block the CI pipeline
     
     print("📝 Gemini Suggestions received. Applying changes...")
     
