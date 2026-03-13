@@ -50,5 +50,29 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 *   🔹 **Modifications mineures :** (ex: changer une couleur) Ajoute une ligne simple dans `### Changed`.
 *   🚀 **Refonte majeure :** Crée une nouvelle section de version pour marquer l'évolution.
 
+---
+
+## 🆙 5. Synchronisation de Version (Version Bump)
+*Règle n°5 : Gestion de la Version Logicielle*
+
+À chaque modification impactant le `CHANGELOG.md`, tu dois également mettre à jour le fichier de métadonnées du projet (ex: `package.json`, `version.py`, `pyproject.toml`, ou `pom.xml`) selon la logique **SemVer** (Semantic Versioning) :
+
+1.  🔍 **Détection automatique :** Identifie le fichier source de la version.
+2.  📈 **Incrémentation intelligente :**
+    *   **PATCH (0.0.x) :** Pour les corrections de bugs (`### Fixed`).
+    *   **MINOR (0.x.0) :** Pour les nouvelles fonctionnalités non-bloquantes (`### Added`).
+    *   **MAJOR (x.0.0) :** Pour les changements incompatibles.
+3.  🎯 **Alignement :** La version indiquée dans le `CHANGELOG.md` sous la section datée doit correspondre exactement à celle du fichier de configuration.
+
+**Exemple d'affichage en fin de réponse :**
+> Mise à jour de version : `0.1.4` → `0.2.0` (Minor bump)
+> ```json
+> // package.json
+> "version": "0.2.0"
+> ```
+
+---
+
 > [!TIP]
 > Un Changelog propre est le signe d'un projet bien maintenu et d'un développeur rigoureux.
+
