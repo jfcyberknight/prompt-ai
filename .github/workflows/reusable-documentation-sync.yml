@@ -1,0 +1,38 @@
+name: 🚢 Prompt-AI Documentation Sync
+
+on:
+  workflow_call:
+    secrets:
+      LLM_API_KEY:
+        required: true
+      GH_PAT:
+        required: true
+
+jobs:
+  sync_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/checkout@v4
+        with:
+          repository: jfcyberknight/prompt-ai
+          path: prompt-ai-tools
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai GitPython
+
+      - name: Run Maestro Sync Engine
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          python prompt-ai-tools/scripts/sync_engine.py

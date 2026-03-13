@@ -43,6 +43,36 @@ prompt-ai/
 
 ---
 
+---
+
+## 🤖 Automatisation (GitHub Actions)
+
+Vous pouvez automatiser la synchronisation de la documentation sur n'importe quel dépôt en utilisant notre **Workflow Réutilisable**.
+
+### Configuration
+1. Dans votre dépôt cible, créez un fichier `.github/workflows/docs-sync.yml`.
+2. Ajoutez le contenu suivant :
+
+```yaml
+name: Sync Documentation
+on:
+  push:
+    branches: [main]
+
+jobs:
+  call-sync:
+    uses: jfcyberknight/prompt-ai/.github/workflows/reusable-documentation-sync.yml@main
+    secrets:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+```
+
+### Secrets requis
+- `LLM_API_KEY` : Votre clé API (OpenAI, Gemini, etc.).
+- `GH_PAT` : Un *Personal Access Token* avec les droits `repo` et `workflow`.
+
+---
+
 ## 🛠️ Maintenance & Qualité
 
 Le projet suit les standards suivants :
