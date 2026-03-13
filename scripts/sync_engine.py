@@ -1,7 +1,7 @@
 import os
 import sys
 from git import Repo
-import openai
+import google.generativeai as genai
 
 def load_prompt(filename):
     path = os.path.join(os.path.dirname(__file__), '..', filename)
@@ -18,8 +18,12 @@ def main():
         print("❌ Error: LLM_API_KEY is not set.")
         sys.exit(1)
 
-    print("🚀 Initializing Prompt-AI Sync Engine...")
+    print("🚀 Initializing Prompt-AI Sync Engine (Gemini Edition)...")
     
+    # Configure Gemini
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-pro')
+
     # Load Prompts
     maestro_prompt = load_prompt("Le Maestro de Flotte GitHub.md")
     architect_prompt = load_prompt("Architecte de Documentation & Changelog.md")
@@ -29,37 +33,35 @@ def main():
     repo = Repo(os.getcwd())
     diff = repo.git.diff('HEAD~1' if len(list(repo.iter_commits())) > 1 else 'HEAD')
     
-    client = openai.OpenAI(api_key=api_key)
+    if not diff:
+        print("ℹ️ No changes detected since last commit.")
+        diff = "Aucun changement récent (analyse de l'état actuel)."
+
+    print("🧠 Analyzing changes with Gemini...")
     
-    print("🧠 Analyzing changes with LLM...")
-    
-    # System instructions combining our prompts
-    system_instruction = f"""
+    # Combined Instruction
+    full_prompt = f"""
+    CONTEXTE ET RÔLES :
     {maestro_prompt}
     
     {architect_prompt}
     
     {guardian_prompt}
     
+    INSTRUCTION :
     Tu es un automate de synchronisation de documentation. 
-    Analyse les changements suivants et fournis les mises à jour pour CHANGELOG.md et README.md.
+    Analyse les changements suivants dans le dépôt et fournis les mises à jour nécessaires pour CHANGELOG.md et README.md.
+    
+    CHANGEMENTS DÉTECTÉS :
+    {diff}
     """
     
-    user_content = f"Voici les derniers changements dans le dépôt :\n{diff}"
+    response = model.generate_content(full_prompt)
     
-    response = client.chat.completions.create(
-        model="gpt-4-turbo-preview",
-        messages=[
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": user_content}
-        ]
-    )
+    suggestion = response.text
+    print("📝 Gemini Suggestions received. Applying changes...")
     
-    suggestion = response.choices[0].message.content
-    print("📝 LLM Suggestions received. Applying changes...")
-    
-    # Logic to parse the suggestion and apply to files would go here.
-    # For now, we output it to a file for manual review or further automation.
+    # Output for review/automation
     with open("PROMPT_AI_SUGGESTION.md", "w", encoding="utf-8") as f:
         f.write(suggestion)
     
