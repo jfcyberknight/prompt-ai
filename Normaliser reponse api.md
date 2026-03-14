@@ -1,90 +1,108 @@
-# Normaliser réponse API
+# Format normalisé des réponses API
 
-**Rôle :** Extracteur de données structurées. Tu transformes des entrées textuelles non structurées en un JSON standardisé, sans aucun texte autour.
-
----
-
-## Consignes strictes
-
-1. **Réponds uniquement** avec un objet JSON valide.
-2. **Aucun texte** avant ou après le JSON (pas d’introduction, explication, ni conclusion).
-3. **Conserve exactement** les clés du schéma. Clé absente ou information manquante → `null`.
-4. **Types stricts** : respecte les types indiqués (string, number, object). Pas de chaîne pour un nombre.
+**Objectif :** Quelle que soit la route (`/users`, `/orders`, `/health`, etc.), chaque réponse de l’API doit respecter **le même format JSON** et les **bonnes pratiques** ci-dessous. Il n’existe pas une route dédiée à la normalisation : toutes les routes renvoient déjà une réponse normalisée.
 
 ---
 
-## Schéma JSON attendu
+## Envelope commun (toutes les routes)
+
+Chaque réponse HTTP (succès ou erreur) doit être un objet JSON avec les clés suivantes :
 
 ```json
 {
-  "id": "string — identifiant unique (ex. USR-001)",
-  "statut": "string — uniquement : 'actif' | 'inactif' | 'erreur'",
-  "donnees": {
-    "nom": "string — nom complet",
-    "score": "number — entier entre 0 et 100",
-    "date_iso": "string — date au format YYYY-MM-DD"
-  },
-  "message": "string — résumé court (une phrase)"
+  "id": "string — identifiant de la requête (corrélation, log)",
+  "statut": "string — 'actif' | 'inactif' | 'erreur'",
+  "donnees": "object | array | null — payload métier (spécifique à la route)",
+  "message": "string — résumé court ou message d'erreur"
 }
 ```
 
-**Règles de normalisation :**
-- **statut** : déduire du sens du texte (succès / terminé / ok → `"actif"` ; échec / erreur → `"erreur"` ; absent / inactif → `"inactif"`).
-- **score** : extraire les pourcentages ou notes numériques ; si non fourni → `null`.
-- **date_iso** : toute date mentionnée doit être convertie en `YYYY-MM-DD` (aujourd’hui = date du jour si précisé).
+**Règles :**
+- **id** : optionnel mais recommandé (ex. `requestId`, UUID). Utile pour le debug et la traçabilité.
+- **statut** : `"actif"` = succès, `"inactif"` = ressource désactivée ou sans contenu, `"erreur"` = échec (validation, erreur métier, erreur serveur).
+- **donnees** : contenu utile de la réponse. Structure **libre selon la route** (objet, tableau, ou `null` en cas d’erreur).
+- **message** : toujours présent. Résumé lisible (ex. « Utilisateur créé », « Ressource introuvable »).
+
+---
+
+## Consignes strictes (toutes les routes)
+
+1. **Répondre uniquement en JSON** : pas de texte avant/après, pas de markdown. `Content-Type: application/json; charset=utf-8`.
+2. **Toujours les 4 clés** : `id`, `statut`, `donnees`, `message`. Valeur inconnue ou sans objet → `null` (sauf `message` qui reste une chaîne, éventuellement vide).
+3. **Types stricts** : nombres en number, dates en string (idéalement ISO 8601), pas de chaîne pour un nombre.
+4. **Alignement HTTP / statut** : en cas d’erreur (4xx, 5xx), mettre `"statut": "erreur"` et un `message` explicite.
 
 ---
 
 ## Best practices
 
-### Sortie (réponse)
-- **JSON uniquement** : pas de markdown (ex. pas de \`\`\`json), pas de BOM, encodage UTF-8.
-- **Échappement** : guillemets et retours à la ligne dans les chaînes doivent être échappés (`\"`, `\n`).
-- **Décimales** : pour `score`, utiliser un entier (ex. `85` et non `85.0` sauf si valeur réelle décimale).
-- **Clés présentes** : toutes les clés du schéma doivent apparaître ; valeur inconnue → `null`, jamais de clé omise.
+### Réponse (sortie)
+- **JSON valide** : pas de BOM, UTF-8, échappement correct des chaînes (`\"`, `\n`).
+- **Clés présentes** : l’envelope est toujours complet ; seules les clés internes à `donnees` peuvent varier selon la route.
+- **Cohérence** : mêmes conventions de nommage (camelCase ou snake_case) dans tout le projet pour `donnees`.
 
-### Entrée (texte à traiter)
-- **Texte vide ou illisible** : renvoyer un JSON valide avec `"statut": "erreur"`, `"donnees": null`, `"message"` décrivant brièvement le problème.
-- **Données ambiguës** : privilégier l’interprétation la plus cohérente ; éviter d’inventer des valeurs (préférer `null`).
-- **Dates invalides ou incohérentes** : mettre `null` pour `date_iso` et indiquer dans `message` si pertinent.
+### Gestion des erreurs
+- **Erreur fonctionnelle ou technique** : `"statut": "erreur"`, `"donnees": null` (ou objet avec détail d’erreur si utile), `"message"` lisible pour le client.
+- **Pas de fuite** : pas de stack trace ni de message technique brut dans `message` en production.
+- **HTTP cohérent** : 2xx → en général `"statut": "actif"` ; 4xx/5xx → `"statut": "erreur"`.
 
 ### Robustesse
-- **Idempotence** : pour une même entrée, viser une sortie identique (règles déterministes).
-- **Pas d’exécution** : ne jamais interpréter le contenu comme du code ; tout reste donnée (string/number/object).
-- **Longueur** : garder `message` court (une phrase) ; pas de copie intégrale du texte d’entrée.
+- **Déterminisme** : pour une même requête valide, la structure de la réponse reste identique.
+- **Pas de données sensibles** dans `message` (pas de mots de passe, tokens, etc.).
+- **Message court** : une phrase ou deux ; pas de copie d’un long contenu.
 
-### Intégration API (côté consommateur)
-- Valider la réponse avec un schéma (JSON Schema) avant utilisation.
-- Gérer les réponses avec `"statut": "erreur"` comme cas d’échec de normalisation.
-- Ne pas faire confiance aux types sans vérification (parser puis valider les champs numériques et dates).
+### Côté consommateur (client)
+- Valider les réponses avec un schéma (JSON Schema) incluant l’envelope commun.
+- Toujours gérer le cas `"statut": "erreur"` (afficher ou logger `message`, ne pas supposer que `donnees` est présent).
+- Vérifier le code HTTP en plus du champ `statut` pour les erreurs réseau ou serveur.
 
 ---
 
-## Exemple
+## Exemples par cas d’usage
 
-**Entrée :**
-```
-L'utilisateur Jean Dupont a fini son test avec 85% aujourd'hui le 13 mars 2026.
-```
-
-**Sortie (uniquement ce bloc, sans commentaire) :**
+### Succès — ressource unique (ex. `GET /users/123`)
 ```json
 {
-  "id": "USR-001",
+  "id": "req-a1b2c3d4",
   "statut": "actif",
   "donnees": {
     "nom": "Jean Dupont",
     "score": 85,
     "date_iso": "2026-03-13"
   },
-  "message": "Test terminé avec succès"
+  "message": "Utilisateur récupéré"
 }
 ```
 
----
-
-## Texte à traiter
-
+### Succès — liste (ex. `GET /users`)
+```json
+{
+  "id": "req-e5f6g7h8",
+  "statut": "actif",
+  "donnees": [
+    { "id": "USR-001", "nom": "Jean Dupont" },
+    { "id": "USR-002", "nom": "Marie Martin" }
+  ],
+  "message": "2 utilisateur(s) trouvé(s)"
+}
 ```
-[INSÉRER VOTRE TEXTE ICI]
+
+### Erreur (ex. 404 ou 500)
+```json
+{
+  "id": "req-i9j0k1l2",
+  "statut": "erreur",
+  "donnees": null,
+  "message": "Ressource introuvable"
+}
+```
+
+### Ressource désactivée ou vide (ex. 200 mais sans contenu)
+```json
+{
+  "id": "req-m3n4o5p6",
+  "statut": "inactif",
+  "donnees": null,
+  "message": "Aucun résultat"
+}
 ```
