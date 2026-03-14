@@ -12,12 +12,14 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Files) { $Files = @() }
+$DefaultCommitMessage = 'chore: update'
 
 # --- [AFFICHAGE] ---
 $IsTerminal = [Environment]::UserInteractive -and $Host.UI.RawUI
 function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) } }
 function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) } }
 function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) } }
+function Write-Info { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) } }
 
 # --- [FONCTIONS] ---
 function Test-IsGitRepo {
@@ -45,7 +47,7 @@ function Invoke-GitAdd {
             if (Test-Path $f) {
                 git add $f
             } else {
-                Write-Fail "Fichier introuvable : $f"
+                Write-Fail ('Fichier introuvable : ' + $f)
                 return $false
             }
         }
@@ -57,7 +59,7 @@ function Invoke-GitCommit {
     param([string] $CommitMessage)
     # Effectue le commit avec le message fourni
     if ([string]::IsNullOrWhiteSpace($CommitMessage)) {
-        Write-Fail "Message de commit vide. Utilisez -Message \"Votre message\"."
+        Write-Fail 'Message de commit vide. Utilisez -Message "Votre message".'
         return $false
     }
     & git commit -m $CommitMessage
@@ -75,70 +77,67 @@ $start = Get-Date
 if ($IsTerminal) { Write-Host "`n=== Commit-Push - Git commit et push ===`n" -ForegroundColor White }
 
 try {
-    # Vérification dépôt Git
-    Write-Step "Vérification du dépôt Git..."
+    # Verification depot Git
+    Write-Step 'Verification du depot Git...'
     if (-not (Test-IsGitRepo)) {
-        Write-Fail "Le répertoire courant n'est pas un dépôt Git."
-        if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
+        Write-Fail "Le repertoire courant n'est pas un depot Git."
+        if ($IsTerminal) { Write-Host "`n[ERREUR] Echec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Echec`n" }
         exit 1
     }
-    Write-Success "Dépôt Git détecté"
+    Write-Success 'Depot Git detecte'
 
-    # Vérification s'il y a des changements
+    # Verification s'il y a des changements
     $statusOutput = Get-GitStatusShort
     if ([string]::IsNullOrWhiteSpace($statusOutput)) {
-        Write-Fail "Aucun changement à committer (working tree clean)."
-        if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
-        exit 1
+        Write-Info 'Aucun changement a committer (working tree clean).'
+        if ($IsTerminal) { Write-Host "`n[INFO] Rien a faire.`n" -ForegroundColor Yellow } else { Write-Host "`n[INFO] Rien a faire.`n" }
+        exit 0
     }
 
-    # Demande du message si non fourni
+    # Message : parametre, sinon defaut
     $CommitMessage = $Message
     if ([string]::IsNullOrWhiteSpace($CommitMessage)) {
-        $CommitMessage = Read-Host "Message de commit"
-        if ([string]::IsNullOrWhiteSpace($CommitMessage)) {
-            Write-Fail "Message de commit vide."
-            if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
-            exit 1
-        }
+        $CommitMessage = $DefaultCommitMessage
+        Write-Info ('Message de commit : ' + $CommitMessage)
     }
 
     Write-Host ""
 
     # Staging
-    Write-Step "Ajout des fichiers (git add)..."
+    Write-Step 'Ajout des fichiers (git add)...'
     if (-not (Invoke-GitAdd)) {
-        Write-Fail "Échec du staging."
-        if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
+        Write-Fail 'Echec du staging.'
+        if ($IsTerminal) { Write-Host "`n[ERREUR] Echec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Echec`n" }
         exit 1
     }
-    Write-Success "Fichiers ajoutés"
+    Write-Success 'Fichiers ajoutes'
 
     # Commit
-    Write-Step "Création du commit..."
+    Write-Step 'Creation du commit...'
     if (-not (Invoke-GitCommit -CommitMessage $CommitMessage)) {
-        Write-Fail "Échec du commit (peut-être rien à committer après add)."
-        if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
+        Write-Fail 'Echec du commit (peut-etre rien a committer apres add).'
+        if ($IsTerminal) { Write-Host "`n[ERREUR] Echec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Echec`n" }
         exit 1
     }
-    Write-Success "Commit créé"
+    Write-Success 'Commit cree'
 
     Write-Host ""
 
     # Push
-    Write-Step "Envoi vers le remote (git push)..."
+    Write-Step 'Envoi vers le remote (git push)...'
     if (-not (Invoke-GitPush)) {
-        Write-Fail "Échec du push (vérifiez la branche et les droits)."
-        if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
+        Write-Fail 'Echec du push (verifiez la branche et les droits).'
+        if ($IsTerminal) { Write-Host "`n[ERREUR] Echec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Echec`n" }
         exit 1
     }
-    Write-Success "Push terminé"
+    Write-Success 'Push termine'
 
     $duration = (Get-Date) - $start
-    if ($IsTerminal) { Write-Host "`n[OK] Succès (durée: $($duration.TotalSeconds.ToString('0.0'))s)`n" -ForegroundColor Green } else { Write-Host "`n[OK] Succès (durée: $($duration.TotalSeconds.ToString('0.0'))s)`n" }
+    $durStr = $duration.TotalSeconds.ToString('0.0')
+    if ($IsTerminal) { Write-Host ("`n[OK] Succes (duree: " + $durStr + "s)`n") -ForegroundColor Green } else { Write-Host ("`n[OK] Succes (duree: " + $durStr + "s)`n") }
     exit 0
 } catch {
     Write-Fail $_.Exception.Message
-    if ($IsTerminal) { Write-Host "`n[ERREUR] Échec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Échec`n" }
+    if ($IsTerminal) { Write-Host "`n[ERREUR] Echec`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Echec`n" }
     exit 1
 }
