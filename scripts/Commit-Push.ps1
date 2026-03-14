@@ -4,32 +4,48 @@
 # Desc   : Effectue un git add, commit et push avec message et retour visuel.
 # Date   : 2026-03-13
 # =============================================================================
+
+# --- [PARAMETRES] ---
 param(
     [Parameter(Mandatory = $false)]
     [string] $Message,
     [Parameter(Mandatory = $false)]
     [string[]] $Files
 )
+
+# --- [CONFIGURATION] ---
 $ErrorActionPreference = 'Stop'
 if (-not $Files) { $Files = @() }
 $DefaultCommitMessage = 'chore: update'
 
 # --- [AFFICHAGE] ---
 $IsTerminal = [Environment]::UserInteractive -and $Host.UI.RawUI
-function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) } }
-function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) } }
-function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) } }
-function Write-Info { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) } }
+function Write-Step {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) }
+}
+function Write-Success {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) }
+}
+function Write-Fail {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) }
+}
+function Write-Info {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) }
+}
 
 # --- [FONCTIONS] ---
 function Test-IsGitRepo {
-    # Vérifie que le répertoire courant est un dépôt Git
+    # Verifie que le repertoire courant est un depot Git
     $gitDir = Join-Path (Get-Location) ".git"
     return (Test-Path $gitDir) -and (Test-Path (Join-Path $gitDir "HEAD"))
 }
 
 function Get-GitStatusShort {
-    # Retourne la sortie de git status --short pour détecter des changements
+    # Retourne la sortie de git status --short pour detecter des changements
     try {
         $status = git status --short 2>&1
         return $status
@@ -72,12 +88,13 @@ function Invoke-GitPush {
     return $?
 }
 
+
 # --- [MAIN] ---
 $start = Get-Date
 if ($IsTerminal) { Write-Host "`n=== Commit-Push - Git commit et push ===`n" -ForegroundColor White }
 
 try {
-    # Verification depot Git
+    # Verification que le repertoire est un depot Git
     Write-Step 'Verification du depot Git...'
     if (-not (Test-IsGitRepo)) {
         Write-Fail "Le repertoire courant n'est pas un depot Git."

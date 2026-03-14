@@ -4,6 +4,8 @@
 # Desc   : Detecte et supprime dossiers vides, fichiers vides et inutiles.
 # Date   : 2026-03-13
 # =============================================================================
+
+# --- [PARAMETRES] ---
 param(
     [Parameter(Mandatory = $false)]
     [string] $TargetPath,
@@ -12,21 +14,33 @@ param(
     [Parameter(Mandatory = $false)]
     [switch] $IncludeUseless
 )
+
+# --- [CONFIGURATION] ---
 $ErrorActionPreference = 'Stop'
 if (-not $TargetPath) { $TargetPath = (Get-Location).Path }
-
-# Dossiers à ne jamais supprimer (ex. .git, node_modules si souhaité)
+# Dossiers a ne jamais supprimer
 $ExcludeDirs = @(".git", ".vs", ".idea", "node_modules")
-
-# Patterns de fichiers considérés inutiles (avec -IncludeUseless)
+# Patterns de fichiers consideres inutiles (avec -IncludeUseless)
 $UselessPatterns = @("*.tmp", "*.temp", "*.bak", "*~", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 # --- [AFFICHAGE] ---
 $IsTerminal = [Environment]::UserInteractive -and $Host.UI.RawUI
-function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) } }
-function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) } }
-function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) } }
-function Write-Info { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) } }
+function Write-Step {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) }
+}
+function Write-Success {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) }
+}
+function Write-Fail {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) }
+}
+function Write-Info {
+    param([string] $Msg)
+    if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) }
+}
 
 # --- [FONCTIONS] ---
 function Get-ResolvedPath {
@@ -44,7 +58,7 @@ function Get-ResolvedPath {
 
 function Get-EmptyDirectories {
     param([string] $RootPath)
-    # Liste les dossiers vides récursivement (enfants d'abord pour suppression propre)
+    # Liste les dossiers vides recursivement (enfants d'abord pour suppression propre)
     $empty = [System.Collections.ArrayList]::new()
     $dirs = Get-ChildItem -Path $RootPath -Directory -Recurse -ErrorAction SilentlyContinue
     foreach ($dir in $dirs) {
@@ -56,7 +70,7 @@ function Get-EmptyDirectories {
             [void] $empty.Add($dirPath)
         }
     }
-    # Trier par longueur de chemin décroissante (plus profonds en premier)
+    # Trier par longueur de chemin decroissante (plus profonds en premier)
     return ($empty | Sort-Object { $_.Length } -Descending)
 }
 
@@ -86,6 +100,8 @@ function Get-UselessFiles {
 
 # --- [MAIN] ---
 $start = Get-Date
+
+# Resolution du chemin cible
 $root = Get-ResolvedPath
 if (-not $root) {
     if ($IsTerminal) { Write-Host "`n[ERREUR] Chemin invalide : $TargetPath`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Chemin invalide : $TargetPath`n" }
@@ -96,7 +112,7 @@ if ($IsTerminal) { Write-Host "`n=== Clean-EmptyAndUseless - Menage dossiers/fic
 if (-not $Remove) { Write-Info 'Mode liste uniquement (aucune suppression). Utilisez -Remove pour supprimer.' }
 Write-Host ""
 
-# Dossiers vides
+# Recherche et traitement des dossiers vides
 Write-Step 'Recherche des dossiers vides...'
 $emptyDirs = @(Get-EmptyDirectories -RootPath $root)
 if ($emptyDirs.Count -eq 0) {
@@ -136,7 +152,7 @@ if ($emptyFiles.Count -eq 0) {
     if ($Remove) { Write-Success 'Fichiers vides supprimes' }
 }
 
-# Fichiers inutiles (optionnel)
+# Recherche et traitement des fichiers inutiles (optionnel)
 if ($IncludeUseless) {
     Write-Host ""
     Write-Step 'Recherche des fichiers inutiles (.tmp, .bak, .DS_Store, etc.)...'
@@ -158,6 +174,7 @@ if ($IncludeUseless) {
     }
 }
 
+# Resume final et duree
 $duration = (Get-Date) - $start
 Write-Host ""
 $durStr = $duration.TotalSeconds.ToString('0.0')
