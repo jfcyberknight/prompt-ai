@@ -1,21 +1,19 @@
 #Requires -Version 5.1
 # =============================================================================
 # Nom    : Clean-EmptyAndUseless.ps1
-# Desc   : Détecte et supprime dossiers vides, fichiers vides et fichiers inutiles (optionnel).
+# Desc   : Detecte et supprime dossiers vides, fichiers vides et inutiles.
 # Date   : 2026-03-13
 # =============================================================================
-
-$ErrorActionPreference = 'Stop'
-
-# --- [PARAMÈTRES] ---
 param(
     [Parameter(Mandatory = $false)]
-    [string] $Path = ".",
+    [string] $TargetPath,
     [Parameter(Mandatory = $false)]
-    [switch] $Remove = $false,
+    [switch] $Remove,
     [Parameter(Mandatory = $false)]
-    [switch] $IncludeUseless = $false
+    [switch] $IncludeUseless
 )
+$ErrorActionPreference = 'Stop'
+if (-not $TargetPath) { $TargetPath = (Get-Location).Path }
 
 # Dossiers à ne jamais supprimer (ex. .git, node_modules si souhaité)
 $ExcludeDirs = @(".git", ".vs", ".idea", "node_modules")
@@ -25,15 +23,15 @@ $UselessPatterns = @("*.tmp", "*.temp", "*.bak", "*~", ".DS_Store", "Thumbs.db",
 
 # --- [AFFICHAGE] ---
 $IsTerminal = [Environment]::UserInteractive -and $Host.UI.RawUI
-function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host "  [→] $Msg" -ForegroundColor Cyan } else { Write-Host "  [→] $Msg" } }
-function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host "  [OK] $Msg" -ForegroundColor Green } else { Write-Host "  [OK] $Msg" } }
-function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host "  [ERREUR] $Msg" -ForegroundColor Red } else { Write-Host "  [ERREUR] $Msg" } }
-function Write-Info { param([string]$Msg) if ($IsTerminal) { Write-Host "  [INFO] $Msg" -ForegroundColor Yellow } else { Write-Host "  [INFO] $Msg" } }
+function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) } }
+function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) } }
+function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) } }
+function Write-Info { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [INFO] ' + $Msg) -ForegroundColor Yellow } else { Write-Host ('  [INFO] ' + $Msg) } }
 
 # --- [FONCTIONS] ---
 function Get-ResolvedPath {
-    # Retourne le chemin absolu résolu
-    $p = $Path
+    # Retourne le chemin absolu resolu
+    $p = $TargetPath
     if (-not [System.IO.Path]::IsPathRooted($p)) {
         $p = Join-Path (Get-Location) $p
     }
@@ -66,8 +64,9 @@ function Get-EmptyFiles {
     param([string] $RootPath)
     # Liste les fichiers de taille 0
     $files = Get-ChildItem -Path $RootPath -File -Recurse -ErrorAction SilentlyContinue
-    $empty = $files | Where-Object { $_.Length -eq 0 }
-    return $empty.FullName
+    $empty = @($files | Where-Object { $_.Length -eq 0 })
+    if ($empty.Count -eq 0) { return @() }
+    return @($empty | ForEach-Object { $_.FullName })
 }
 
 function Get-UselessFiles {
@@ -85,90 +84,82 @@ function Get-UselessFiles {
     return $found
 }
 
-function Remove-EmptyDirectoriesRecursive {
-    param([string[]] $Paths)
-    foreach ($p in $Paths) {
-        if (Test-Path $p -PathType Container) {
-            Remove-Item -Path $p -Force -Recurse -ErrorAction SilentlyContinue
-        }
-    }
-}
-
 # --- [MAIN] ---
 $start = Get-Date
 $root = Get-ResolvedPath
 if (-not $root) {
-    if ($IsTerminal) { Write-Host "`n[ERREUR] Chemin invalide : $Path`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Chemin invalide : $Path`n" }
+    if ($IsTerminal) { Write-Host "`n[ERREUR] Chemin invalide : $TargetPath`n" -ForegroundColor Red } else { Write-Host "`n[ERREUR] Chemin invalide : $TargetPath`n" }
     exit 1
 }
 
-if ($IsTerminal) { Write-Host "`n=== Clean-EmptyAndUseless — Ménage dossiers/fichiers vides et inutiles ===`n" -ForegroundColor White }
-if (-not $Remove) { Write-Info "Mode liste uniquement (aucune suppression). Utilisez -Remove pour supprimer." }
+if ($IsTerminal) { Write-Host "`n=== Clean-EmptyAndUseless - Menage dossiers/fichiers vides et inutiles ===`n" -ForegroundColor White }
+if (-not $Remove) { Write-Info 'Mode liste uniquement (aucune suppression). Utilisez -Remove pour supprimer.' }
 Write-Host ""
 
 # Dossiers vides
-Write-Step "Recherche des dossiers vides..."
+Write-Step 'Recherche des dossiers vides...'
 $emptyDirs = @(Get-EmptyDirectories -RootPath $root)
 if ($emptyDirs.Count -eq 0) {
-    Write-Success "Aucun dossier vide trouvé"
+    Write-Success 'Aucun dossier vide trouve'
 } else {
-    Write-Info "$($emptyDirs.Count) dossier(s) vide(s) trouvé(s)"
+    Write-Info ($emptyDirs.Count.ToString() + ' dossier(s) vide(s) trouve(s)')
     foreach ($d in $emptyDirs) {
         $rel = $d.Replace($root, "").TrimStart("\", "/")
         if ($Remove) {
             Remove-Item -Path $d -Force -Recurse -ErrorAction SilentlyContinue
-            if ($IsTerminal) { Write-Host "    Supprimé : $rel" -ForegroundColor Gray } else { Write-Host "    Supprimé : $rel" }
+            if ($IsTerminal) { Write-Host ('    Supprime : ' + $rel) -ForegroundColor Gray } else { Write-Host ('    Supprime : ' + $rel) }
         } else {
-            if ($IsTerminal) { Write-Host "    $rel" -ForegroundColor Gray } else { Write-Host "    $rel" }
+            if ($IsTerminal) { Write-Host ('    ' + $rel) -ForegroundColor Gray } else { Write-Host ('    ' + $rel) }
         }
     }
-    if ($Remove) { Write-Success "Dossiers vides supprimés" }
+    if ($Remove) { Write-Success 'Dossiers vides supprimes' }
 }
 
 Write-Host ""
 
 # Fichiers vides
-Write-Step "Recherche des fichiers vides (0 octet)..."
+Write-Step 'Recherche des fichiers vides (0 octet)...'
 $emptyFiles = @(Get-EmptyFiles -RootPath $root)
 if ($emptyFiles.Count -eq 0) {
-    Write-Success "Aucun fichier vide trouvé"
+    Write-Success 'Aucun fichier vide trouve'
 } else {
-    Write-Info "$($emptyFiles.Count) fichier(s) vide(s) trouvé(s)"
+    Write-Info ($emptyFiles.Count.ToString() + ' fichier(s) vide(s) trouve(s)')
     foreach ($f in $emptyFiles) {
         $rel = $f.Replace($root, "").TrimStart("\", "/")
         if ($Remove) {
             Remove-Item -Path $f -Force -ErrorAction SilentlyContinue
-            if ($IsTerminal) { Write-Host "    Supprimé : $rel" -ForegroundColor Gray } else { Write-Host "    Supprimé : $rel" }
+            if ($IsTerminal) { Write-Host ('    Supprime : ' + $rel) -ForegroundColor Gray } else { Write-Host ('    Supprime : ' + $rel) }
         } else {
-            if ($IsTerminal) { Write-Host "    $rel" -ForegroundColor Gray } else { Write-Host "    $rel" }
+            if ($IsTerminal) { Write-Host ('    ' + $rel) -ForegroundColor Gray } else { Write-Host ('    ' + $rel) }
         }
     }
-    if ($Remove) { Write-Success "Fichiers vides supprimés" }
+    if ($Remove) { Write-Success 'Fichiers vides supprimes' }
 }
 
 # Fichiers inutiles (optionnel)
 if ($IncludeUseless) {
     Write-Host ""
-    Write-Step "Recherche des fichiers inutiles (.tmp, .bak, .DS_Store, etc.)..."
+    Write-Step 'Recherche des fichiers inutiles (.tmp, .bak, .DS_Store, etc.)...'
     $uselessFiles = @(Get-UselessFiles -RootPath $root)
     if ($uselessFiles.Count -eq 0) {
-        Write-Success "Aucun fichier inutile trouvé"
+        Write-Success 'Aucun fichier inutile trouve'
     } else {
-        Write-Info "$($uselessFiles.Count) fichier(s) inutile(s) trouvé(s)"
+        Write-Info ($uselessFiles.Count.ToString() + ' fichier(s) inutile(s) trouve(s)')
         foreach ($f in $uselessFiles) {
             $rel = $f.Replace($root, "").TrimStart("\", "/")
             if ($Remove) {
                 Remove-Item -Path $f -Force -ErrorAction SilentlyContinue
-                if ($IsTerminal) { Write-Host "    Supprimé : $rel" -ForegroundColor Gray } else { Write-Host "    Supprimé : $rel" }
+                if ($IsTerminal) { Write-Host ('    Supprime : ' + $rel) -ForegroundColor Gray } else { Write-Host ('    Supprime : ' + $rel) }
             } else {
-                if ($IsTerminal) { Write-Host "    $rel" -ForegroundColor Gray } else { Write-Host "    $rel" }
+                if ($IsTerminal) { Write-Host ('    ' + $rel) -ForegroundColor Gray } else { Write-Host ('    ' + $rel) }
             }
         }
-        if ($Remove) { Write-Success "Fichiers inutiles supprimés" }
+        if ($Remove) { Write-Success 'Fichiers inutiles supprimes' }
     }
 }
 
 $duration = (Get-Date) - $start
 Write-Host ""
-if ($IsTerminal) { Write-Host "[OK] Terminé (durée: $($duration.TotalSeconds.ToString('0.0'))s)`n" -ForegroundColor Green } else { Write-Host "[OK] Terminé (durée: $($duration.TotalSeconds.ToString('0.0'))s)`n" }
+$durStr = $duration.TotalSeconds.ToString('0.0')
+if ($IsTerminal) { Write-Host ('[OK] Termine (duree: ' + $durStr + 's)' + "`n") -ForegroundColor Green } else { Write-Host ('[OK] Termine (duree: ' + $durStr + 's)' + "`n") }
 exit 0

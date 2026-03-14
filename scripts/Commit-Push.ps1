@@ -4,22 +4,20 @@
 # Desc   : Effectue un git add, commit et push avec message et retour visuel.
 # Date   : 2026-03-13
 # =============================================================================
-
-$ErrorActionPreference = 'Stop'
-
-# --- [PARAMÈTRES] ---
 param(
     [Parameter(Mandatory = $false)]
-    [string] $Message = "",
+    [string] $Message,
     [Parameter(Mandatory = $false)]
-    [string[]] $Files = @()
+    [string[]] $Files
 )
+$ErrorActionPreference = 'Stop'
+if (-not $Files) { $Files = @() }
 
 # --- [AFFICHAGE] ---
 $IsTerminal = [Environment]::UserInteractive -and $Host.UI.RawUI
-function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host "  [→] $Msg" -ForegroundColor Cyan } else { Write-Host "  [→] $Msg" } }
-function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host "  [OK] $Msg" -ForegroundColor Green } else { Write-Host "  [OK] $Msg" } }
-function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host "  [ERREUR] $Msg" -ForegroundColor Red } else { Write-Host "  [ERREUR] $Msg" } }
+function Write-Step { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [->] ' + $Msg) -ForegroundColor Cyan } else { Write-Host ('  [->] ' + $Msg) } }
+function Write-Success { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [OK] ' + $Msg) -ForegroundColor Green } else { Write-Host ('  [OK] ' + $Msg) } }
+function Write-Fail { param([string]$Msg) if ($IsTerminal) { Write-Host ('  [ERREUR] ' + $Msg) -ForegroundColor Red } else { Write-Host ('  [ERREUR] ' + $Msg) } }
 
 # --- [FONCTIONS] ---
 function Test-IsGitRepo {
@@ -74,7 +72,7 @@ function Invoke-GitPush {
 
 # --- [MAIN] ---
 $start = Get-Date
-if ($IsTerminal) { Write-Host "`n=== Commit-Push — Git commit et push ===`n" -ForegroundColor White }
+if ($IsTerminal) { Write-Host "`n=== Commit-Push - Git commit et push ===`n" -ForegroundColor White }
 
 try {
     # Vérification dépôt Git
