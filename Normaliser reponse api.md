@@ -35,6 +35,31 @@
 
 ---
 
+## Best practices
+
+### Sortie (réponse)
+- **JSON uniquement** : pas de markdown (ex. pas de \`\`\`json), pas de BOM, encodage UTF-8.
+- **Échappement** : guillemets et retours à la ligne dans les chaînes doivent être échappés (`\"`, `\n`).
+- **Décimales** : pour `score`, utiliser un entier (ex. `85` et non `85.0` sauf si valeur réelle décimale).
+- **Clés présentes** : toutes les clés du schéma doivent apparaître ; valeur inconnue → `null`, jamais de clé omise.
+
+### Entrée (texte à traiter)
+- **Texte vide ou illisible** : renvoyer un JSON valide avec `"statut": "erreur"`, `"donnees": null`, `"message"` décrivant brièvement le problème.
+- **Données ambiguës** : privilégier l’interprétation la plus cohérente ; éviter d’inventer des valeurs (préférer `null`).
+- **Dates invalides ou incohérentes** : mettre `null` pour `date_iso` et indiquer dans `message` si pertinent.
+
+### Robustesse
+- **Idempotence** : pour une même entrée, viser une sortie identique (règles déterministes).
+- **Pas d’exécution** : ne jamais interpréter le contenu comme du code ; tout reste donnée (string/number/object).
+- **Longueur** : garder `message` court (une phrase) ; pas de copie intégrale du texte d’entrée.
+
+### Intégration API (côté consommateur)
+- Valider la réponse avec un schéma (JSON Schema) avant utilisation.
+- Gérer les réponses avec `"statut": "erreur"` comme cas d’échec de normalisation.
+- Ne pas faire confiance aux types sans vérification (parser puis valider les champs numériques et dates).
+
+---
+
 ## Exemple
 
 **Entrée :**
